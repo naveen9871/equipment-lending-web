@@ -12,7 +12,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 interface Equipment {
   id: number
   name: string
-  category: { name: string }
+  category: { id: number; name: string }  // Make sure category has id
   description: string
   condition: string
   total_quantity: number
@@ -62,6 +62,7 @@ export default function AdminEquipment() {
 
       if (response.ok) {
         const data = await response.json()
+        console.log("Equipment data:", data) // Debug log
         setEquipment(data.results || data)
       }
     } catch (error) {
@@ -80,7 +81,16 @@ export default function AdminEquipment() {
 
       if (response.ok) {
         const data = await response.json()
+        console.log("Categories data:", data) // Debug log
         setCategories(data.results || data)
+        
+        // Set default category for form if categories are loaded
+        if (data.results?.[0] || data[0]) {
+          setFormData(prev => ({
+            ...prev,
+            category: (data.results?.[0]?.id || data[0]?.id).toString()
+          }))
+        }
       }
     } catch (error) {
       console.error("Failed to fetch categories:", error)
@@ -95,31 +105,54 @@ export default function AdminEquipment() {
       const url = editingId ? `${API_URL}/api/equipment/${editingId}/` : `${API_URL}/api/equipment/`
       const method = editingId ? "PUT" : "POST"
 
+      const payload = {
+        ...formData,
+        category: parseInt(formData.category) || 1 // Ensure category is a number
+      }
+
+      console.log("Submitting:", payload) // Debug log
+
       const response = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       })
 
       if (response.ok) {
         setShowModal(false)
         setEditingId(null)
-        setFormData({ name: "", category: "", description: "", condition: "excellent", total_quantity: 1 })
+        setFormData({ 
+          name: "", 
+          category: categories[0]?.id.toString() || "1", 
+          description: "", 
+          condition: "excellent", 
+          total_quantity: 1 
+        })
         fetchEquipment()
+      } else {
+        const errorData = await response.json()
+        console.error("Server error:", errorData)
+        alert(`Error: ${JSON.stringify(errorData)}`)
       }
     } catch (error) {
       console.error("Error:", error)
+      alert("Failed to save equipment. Please try again.")
     }
   }
 
   const handleEdit = (item: Equipment) => {
+    console.log("Editing item:", item) // Debug log
+    
+    // Safely handle category data
+    const categoryId = item.category?.id?.toString() || categories[0]?.id.toString() || "1"
+    
     setEditingId(item.id)
     setFormData({
       name: item.name,
-      category: item.category.id.toString(),
+      category: categoryId,
       description: item.description,
       condition: item.condition,
       total_quantity: item.total_quantity,
@@ -141,9 +174,14 @@ export default function AdminEquipment() {
 
       if (response.ok) {
         fetchEquipment()
+      } else {
+        const errorData = await response.json()
+        console.error("Delete error:", errorData)
+        alert(`Error deleting equipment: ${JSON.stringify(errorData)}`)
       }
     } catch (error) {
       console.error("Error deleting equipment:", error)
+      alert("Failed to delete equipment. Please try again.")
     }
   }
 
@@ -168,9 +206,18 @@ export default function AdminEquipment() {
   const filteredEquipment = equipment.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = selectedCategory === "all" || item.category.name === selectedCategory
+    
+    // Safely handle category filtering
+    const categoryName = item.category?.name || ""
+    const matchesCategory = selectedCategory === "all" || categoryName === selectedCategory
+    
     return matchesSearch && matchesCategory
   })
+
+  // Safely get category name for display
+  const getCategoryName = (item: Equipment) => {
+    return item.category?.name || "Uncategorized"
+  }
 
   return (
     <AdminLayout>
@@ -184,7 +231,13 @@ export default function AdminEquipment() {
           <button
             onClick={() => {
               setEditingId(null)
-              setFormData({ name: "", category: categories[0]?.id.toString() || "", description: "", condition: "excellent", total_quantity: 1 })
+              setFormData({ 
+                name: "", 
+                category: categories[0]?.id.toString() || "1", 
+                description: "", 
+                condition: "excellent", 
+                total_quantity: 1 
+              })
               setShowModal(true)
             }}
             className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center space-x-2"
@@ -267,7 +320,7 @@ export default function AdminEquipment() {
                         </td>
                         <td className="px-6 py-4">
                           <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-medium border border-blue-200">
-                            {item.category.name}
+                            {getCategoryName(item)}
                           </span>
                         </td>
                         <td className="px-6 py-4">

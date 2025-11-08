@@ -10,7 +10,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 interface BorrowRequest {
   id: number
-  equipment: { id: number; name: string; category: { name: string } }
+  equipment: { 
+    id: number; 
+    name: string; 
+    category?: { name: string }  // Make category optional
+  }
   quantity: number
   purpose: string
   status: string
@@ -45,7 +49,10 @@ export default function StudentRequests() {
 
       if (response.ok) {
         const data = await response.json()
+        console.log("Requests data:", data) // Debug log
         setRequests(data.results || data)
+      } else {
+        console.error("Failed to fetch requests:", response.status)
       }
     } catch (error) {
       console.error("Failed to fetch requests:", error)
@@ -116,6 +123,20 @@ export default function StudentRequests() {
       }
     }
     return "📦"
+  }
+
+  // Safe data access functions
+  const getEquipmentName = (request: BorrowRequest) => {
+    return request.equipment?.name || "Unknown Equipment"
+  }
+
+  const getCategoryName = (request: BorrowRequest) => {
+    return request.equipment?.category?.name || "Uncategorized"
+  }
+
+  const getCategoryIconSafe = (request: BorrowRequest) => {
+    const categoryName = getCategoryName(request)
+    return getCategoryIcon(categoryName)
   }
 
   const filteredRequests = statusFilter === "all" 
@@ -209,13 +230,15 @@ export default function StudentRequests() {
                           <div>
                             <div className="flex items-center space-x-3 mb-2">
                               <span className="text-2xl">
-                                {getCategoryIcon(request.equipment.category.name)}
+                                {getCategoryIconSafe(request)}
                               </span>
-                              <h3 className="text-xl font-bold text-gray-900">{request.equipment.name}</h3>
+                              <h3 className="text-xl font-bold text-gray-900">
+                                {getEquipmentName(request)}
+                              </h3>
                             </div>
                             <div className="flex items-center space-x-4 text-sm text-gray-600">
                               <span className="bg-gray-100 rounded-full px-3 py-1 border border-gray-200">
-                                {request.equipment.category.name}
+                                {getCategoryName(request)}
                               </span>
                               <span>Quantity: <strong className="text-gray-900">{request.quantity}</strong></span>
                               <span>•</span>
