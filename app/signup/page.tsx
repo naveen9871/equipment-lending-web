@@ -14,6 +14,7 @@ export default function SignupPage() {
     username: "",
     email: "",
     password: "",
+    password2: "", // Add password confirmation field
     first_name: "",
     last_name: "",
     role: "student",
@@ -31,33 +32,72 @@ export default function SignupPage() {
     setError("")
     setLoading(true)
 
+    // Client-side validation
+    if (formData.password !== formData.password2) {
+      setError("Passwords do not match")
+      setLoading(false)
+      return
+    }
+
     try {
       const response = await fetch(`${API_URL}/api/users/register/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          password2: formData.password2, // Include password confirmation
+          first_name: formData.first_name,
+          last_name: formData.last_name,
+          role: formData.role,
+          department: formData.department,
+        }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.detail || "Registration failed. Please try again.")
+        // Handle Django validation errors
+        if (data.username) {
+          throw new Error(`Username: ${Array.isArray(data.username) ? data.username[0] : data.username}`)
+        }
+        if (data.email) {
+          throw new Error(`Email: ${Array.isArray(data.email) ? data.email[0] : data.email}`)
+        }
+        if (data.password) {
+          throw new Error(`Password: ${Array.isArray(data.password) ? data.password[0] : data.password}`)
+        }
+        if (data.non_field_errors) {
+          throw new Error(Array.isArray(data.non_field_errors) ? data.non_field_errors[0] : data.non_field_errors)
+        }
+        throw new Error(data.detail || data.message || "Registration failed. Please try again.")
       }
+
+      console.log("Registration successful:", data)
 
       // Auto-login after successful signup
       const loginResponse = await fetch(`${API_URL}/api/token/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: formData.username, password: formData.password }),
+        body: JSON.stringify({ 
+          username: formData.username, 
+          password: formData.password 
+        }),
       })
 
       if (loginResponse.ok) {
-        const data = await loginResponse.json()
-        localStorage.setItem("access_token", data.access)
-        localStorage.setItem("refresh_token", data.refresh)
+        const tokenData = await loginResponse.json()
+        localStorage.setItem("access_token", tokenData.access)
+        localStorage.setItem("refresh_token", tokenData.refresh)
         localStorage.setItem("user_role", formData.role)
+        localStorage.setItem("username", formData.username)
 
         // Redirect based on role
         router.push(formData.role === "admin" || formData.role === "staff" ? "/admin/dashboard" : "/student/dashboard")
+      } else {
+        // Registration successful but login failed - redirect to login
+        router.push("/login?message=registration_success")
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
@@ -154,18 +194,32 @@ export default function SignupPage() {
               />
             </div>
 
-            {/* Password */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                placeholder="Create a secure password"
-                required
-              />
+            {/* Password Fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Create password"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
+                <input
+                  type="password"
+                  name="password2"
+                  value={formData.password2}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Confirm password"
+                  required
+                />
+              </div>
             </div>
 
             {/* Role and Department */}
