@@ -91,7 +91,7 @@ export default function EquipmentCard({ equipment, isStudent }: { equipment: Equ
           <button
             onClick={() => setShowModal(true)}
             disabled={equipment.available_quantity === 0}
-            className="w-full py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2 rounded-lg bg-primary text-black font-medium hover:bg-primary/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {equipment.available_quantity > 0 ? "Request to Borrow" : "Not Available"}
           </button>
@@ -154,7 +154,7 @@ export default function EquipmentCard({ equipment, isStudent }: { equipment: Equ
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition disabled:opacity-50"
+                  className="flex-1 py-2 rounded-lg bg-primary text-black font-medium hover:bg-primary/90 transition disabled:opacity-50"
                 >
                   {loading ? "Submitting..." : "Submit Request"}
                 </button>
